@@ -1,45 +1,46 @@
 # Self-Learning Knowledge Base
 
-An AI-powered knowledge management system that learns from your documents.
+An AI-powered knowledge management system with semantic search.
 
-## Features
+## Versions
 
-- [ ] Document ingestion (PDF, TXT, MD, DOCX)
-- [ ] Semantic search using embeddings
-- [ ] RAG-based Q&A
-- [ ] Learning from user feedback
-- [ ] Multi-source indexing (Drive, local files, emails)
+### v2.0 (Current)
+- ✅ Vector embeddings for semantic search
+- ✅ Text chunking for large documents
+- ✅ Cosine similarity search
+- ✅ In-memory vector store (upgradable to FAISS/Chroma)
+- ✅ RAG-like query answering
 
-## Architecture
-
-```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  Documents  │ -> │  Embeddings  │ -> │  Vector DB  │
-└─────────────┘    └──────────────┘    └─────────────┘
-                                              │
-                                              v
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│   User     │ <- │    LLM       │ <- │   Search   │
-│  Query     │    │   (RAG)      │    │   Results  │
-└─────────────┘    └──────────────┘    └─────────────┘
-```
+### v1.0 (Legacy)
+- Keyword-based indexing
+- Simple search
 
 ## Usage
 
 ```bash
-# Index documents
-python knowledge_base.py index ./docs
+# Check stats
+python knowledge_base_v2.py stats
 
-# Query the knowledge base
-python knowledge_base.py query "What is my project about?"
+# Index a file
+python knowledge_base_v2.py index ./myfile.txt
+
+# Query
+python knowledge_base_v2.py query "What is this about?"
 ```
 
-## Requirements
+## Architecture
 
-- Python 3.8+
-- OpenAI API key (for embeddings + LLM)
-- or local embeddings (sentence-transformers)
+```
+User Query → Embedding → Vector Store → Top Matches → Answer
+```
+
+## Upgrades Available
+
+- Replace with OpenAI embeddings
+- Add Chroma/FAISS for better vector search
+- Connect to Google Drive
+- Add web scraping
 
 ---
 
-*Last updated: February 22, 2026*
+*🤖 Built by Alita - Feb 21, 2026*
