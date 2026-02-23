@@ -170,14 +170,32 @@ class EmbeddingGenerator:
             raise Exception(f"API error: {response.status_code}")
     
     def _generate_hash_embedding(self, text: str) -> List[float]:
-        """Generate pseudo-embedding using hash (fallback)."""
-        words = text.lower().split()
+        """Generate pseudo-embedding using multiple hash functions (improved fallback)."""
+        text = text.lower()
+        
+        # Use both single words and bigrams for better context
+        words = text.split()
+        bigrams = [f"{words[i]}_{words[i+1]}" for i in range(len(words)-1)]
+        
+        # Combine words and bigrams
+        all_tokens = words + bigrams
+        
+        # Use multiple hash functions for better distribution
         embedding = [0.0] * EMBEDDING_DIM
         
-        for word in set(words):
-            hash_val = int(hashlib.md5(word.encode()).hexdigest(), 16) % EMBEDDING_DIM
-            frequency = words.count(word)
-            embedding[hash_val] = frequency
+        for i, token in enumerate(all_tokens):
+            # Multiple hash functions for different distribution
+            hash1 = int(hashlib.md5(token.encode()).hexdigest(), 16) % EMBEDDING_DIM
+            hash2 = int(hashlib.sha256(token.encode()).hexdigest(), 16) % EMBEDDING_DIM
+            hash3 = int(hashlib.sha1(token.encode()).hexdigest(), 16) % EMBEDDING_DIM
+            
+            # Weight by position (earlier words more important)
+            position_weight = 1.0 / (1.0 + i * 0.1)
+            
+            # Add to embedding with different weights
+            embedding[hash1] += position_weight * 3.0
+            embedding[hash2] += position_weight * 2.0
+            embedding[hash3] += position_weight * 1.0
         
         # Normalize
         magnitude = sum(x*x for x in embedding) ** 0.5
@@ -270,22 +288,49 @@ Instructions:
     def _fallback_answer(self, query: str, context_docs: List[Tuple[Document, float]]) -> str:
         """Fallback answer without LLM."""
         if not context_docs:
-            return "No relevant documents found."
+            return "❌ No relevant documents found in your knowledge base.\n\nTip: Try indexing more documents using:\n  python knowledge_base_v2_ai.py index <your-file.txt>"
         
+        # Check if relevance is very low - might not be relevant
         best_doc, score = context_docs[0]
         
-        answer = f"Based on my knowledge base (relevance: {score:.2f}):\n\n"
-        answer += best_doc.content[:500]
+        if score < 0.01:
+            return f"⚠️ I couldn't find a very relevant match in your knowledge base.\n\nThe best match has relevance: {score:.4f}\n\nTip: Index more documents or try different search terms.\nSource: {best_doc.source}"
         
-        if len(best_doc.content) > 500:
-            answer += "...\n\n[Content truncated]"
+        # Find the most relevant paragraph/section
+        query_words = set(query.lower().split())
+        content_lines = best_doc.content.split('\n')
         
-        answer += f"\n\n*Source: {best_doc.source}*"
+        # Find lines with query keywords
+        relevant_lines = []
+        for line in content_lines:
+            line_words = set(line.lower().split())
+            overlap = query_words & line_words
+            if len(overlap) >= 2:  # At least 2 matching words
+                relevant_lines.append((line, len(overlap)))
+        
+        # Sort by relevance
+        relevant_lines.sort(key=lambda x: x[1], reverse=True)
+        
+        answer = f"📚 Found in: {best_doc.source} (relevance: {score:.2f})\n\n"
+        
+        if relevant_lines:
+            # Show the most relevant parts
+            answer += "**Most relevant sections:**\n\n"
+            for line, _ in relevant_lines[:3]:
+                if line.strip():
+                    answer += f"> {line.strip()}\n\n"
+        else:
+            # Fall back to first 500 chars
+            answer += best_doc.content[:500]
+            if len(best_doc.content) > 500:
+                answer += "...\n"
+        
+        answer += f"\n*Full source: {best_doc.source}*"
         
         if len(context_docs) > 1:
-            answer += "\n\nOther relevant sources:"
-            for doc, _ in context_docs[1:3]:
-                answer += f"\n- {doc.source}"
+            answer += "\n\n📚 Other potentially relevant sources:"
+            for doc, s in context_docs[1:3]:
+                answer += f"\n- {doc.source} (relevance: {s:.2f})"
         
         return answer
 
