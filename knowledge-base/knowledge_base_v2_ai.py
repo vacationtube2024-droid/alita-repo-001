@@ -393,9 +393,21 @@ def main():
     elif command == "index":
         if len(sys.argv) < 3:
             print("Usage: python knowledge_base_v2_ai.py index <file>")
+            print("\nExample:")
+            print("  python knowledge_base_v2_ai.py index myfile.txt")
+            print("  python knowledge_base_v2_ai.py index /path/to/file.py")
             return
         
         file_path = sys.argv[2]
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            print(f"❌ Error: File not found: {file_path}")
+            print("\nPlease provide a valid file path:")
+            print("  python knowledge_base_v2_ai.py index ./myfile.txt")
+            print("  python knowledge_base_v2_ai.py index /full/path/to/file.txt")
+            return
+        
         doc_id = kb.index_document(file_path)
         print(f"✅ Indexed: {file_path} (ID: {doc_id})")
     
