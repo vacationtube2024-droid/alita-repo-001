@@ -1,0 +1,11 @@
+# Alita Projects - Requirements
+
+# Core dependencies
+requests>=2.28.0
+
+# Optional: For better vector storage (future versions)
+# faiss-cpu>=1.7.0
+# chromadb>=0.4.0
+
+# Optional: For local embeddings (future versions)
+# sentence-transformers>=2.2.0
