@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""
+Auto-Code Documenter v2.0
+AI-Powered documentation generator with LLM support.
+"""
+
+import os
+import re
+import json
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Optional
+
+
+class AutoDocGeneratorV2:
+    """AI-powered documentation generator."""
+    
+    SUPPORTED_EXTENSIONS = {
+        '.py': 'Python',
+        '.js': 'JavaScript',
+        '.ts': 'TypeScript',
+        '.java': 'Java',
+        '.go': 'Go',
+        '.rs': 'Rust',
+        '.cpp': 'C++',
+        '.c': 'C',
+        '.rb': 'Ruby',
+        '.php': 'PHP',
+        '.sh': 'Shell',
+        '.sql': 'SQL',
+    }
+    
+    def __init__(self, repo_path: str):
+        self.repo_path = Path(repo_path)
+        self.structure = {'files': [], 'dirs': []}
+        self.file_contents = {}
+        
+    def scan_repository(self) -> Dict:
+        """Scan repository structure."""
+        self.structure = {'files': [], 'dirs': []}
+        
+        for root, dirs, files in os.walk(self.repo_path):
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'venv', 'git']]
+            
+            for file in files:
+                if not file.startswith('.') and not file.endswith('.pyc'):
+                    file_path = os.path.join(root, file)
+                    ext = Path(file).suffix
+                    self.structure['files'].append({
+                        'path': file_path,
+                        'name': file,
+                        'extension': ext,
+                        'language': self.SUPPORTED_EXTENSIONS.get(ext, 'Unknown')
+                    })
+                    
+        return self.structure
+    
+    def read_file_content(self, file_path: str) -> str:
+        """Read file content."""
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()[:5000]  # Limit to first 5000 chars
+        except:
+            return ""
+    
+    def analyze_python_file(self, content: str) -> Dict:
+        """Analyze Python file for functions, classes, imports."""
+        analysis = {
+            'imports': [],
+            'classes': [],
+            'functions': [],
+            'docstring': ''
+        }
+        
+        # Extract imports
+        imports = re.findall(r'^(?:from\s+(\S+)|import\s+(\S+))', content, re.MULTILINE)
+        analysis['imports'] = [i[0] or i[1] for i in imports]
+        
+        # Extract classes
+        classes = re.findall(r'^class\s+(\w+)(?:\(([^)]+)\))?:', content, re.MULTILINE)
+        analysis['classes'] = [{'name': c[0], 'bases': c[1]} for c in classes]
+        
+        # Extract functions
+        functions = re.findall(r'^def\s+(\w+)\s*\(([^)]*)\):', content, re.MULTILINE)
+        analysis['functions'] = [{'name': f[0], 'params': f[1]} for f in functions]
+        
+        # Extract module docstring
+        match = re.search(r'"""(.*?)"""', content, re.DOTALL)
+        if match:
+            analysis['docstring'] = match.group(1).strip()[:200]
+            
+        return analysis
+    
+    def generate_readme(self) -> str:
+        """Generate comprehensive README."""
+        readme = f"""# {self.repo_path.name}
+
+## 📁 Repository Structure
+
+This repository contains **{len(self.structure['files'])} files**.
+
+"""
+        
+        # Group by extension
+        by_ext = {}
+        for f in self.structure['files']:
+            ext = f['extension'] or 'No extension'
+            if ext not in by_ext:
+                by_ext[ext] = []
+            by_ext[ext].append(f)
+        
+        # Add file list
+        readme += "### 📄 Files by Type\n\n"
+        for ext, files in sorted(by_ext.items()):
+            lang = self.SUPPORTED_EXTENSIONS.get(ext, ext)
+            readme += f"| {lang} ({len(files)} files) | "
+            readme += ", ".join([f"`{f['name']}`" for f in files[:3]])
+            if len(files) > 3:
+                readme += f", +{len(files)-3} more"
+            readme += " |\n"
+            
+        # Add code analysis for Python files
+        py_files = [f for f in self.structure['files'] if f['extension'] == '.py']
+        if py_files:
+            readme += "\n### 🐍 Python Code Analysis\n\n"
+            for pf in py_files[:3]:
+                content = self.read_file_content(pf['path'])
+                analysis = self.analyze_python_file(content)
+                
+                readme += f"#### `{pf['name']}`\n"
+                if analysis['docstring']:
+                    readme += f"> {analysis['docstring']}\n\n"
+                if analysis['classes']:
+                    readme += f"**Classes:** {', '.join([c['name'] for c in analysis['classes']])}\n"
+                if analysis['functions']:
+                    readme += f"**Functions:** {', '.join([f['name'] for f in analysis['functions']])}\n"
+                readme += "\n"
+            
+        readme += """---
+
+🤖 *Auto-generated by Alita's Auto-Code Documenter v2.0*
+"""
+        return readme
+    
+    def run(self):
+        """Run the documentation generator."""
+        print(f"🔍 Scanning repository: {self.repo_path}")
+        self.scan_repository()
+        print(f"📊 Found {len(self.structure['files'])} files")
+        
+        readme_content = self.generate_readme()
+        print("\n" + "="*50)
+        print("GENERATED README:")
+        print("="*50)
+        print(readme_content)
+        
+        return readme_content
+
+
+if __name__ == "__main__":
+    import sys
+    repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
+    generator = AutoDocGeneratorV2(repo_path)
+    generator.run()
