@@ -418,8 +418,50 @@ class AutoDocGenerator:
 def main():
     import sys
     
-    repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
+    # Check for help flag
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print("""
+🤖 Auto-Code Documenter v2.1 (AI-Enhanced)
+
+Usage:
+  python doc_generator_v2_ai.py <path> [--no-ai]
+
+Arguments:
+  path         Path to the repository to document (default: current directory)
+  --no-ai      Run without AI (fallback mode)
+
+Examples:
+  python doc_generator_v2_ai.py .                    # Document current folder
+  python doc_generator_v2_ai.py /path/to/repo        # Document specific folder
+  python doc_generator_v2_ai.py . --no-ai            # Without AI API
+
+Environment Variables:
+  OPENROUTER_API_KEY    Your OpenRouter API key for AI features
+
+Notes:
+  - Without API key, uses fallback mode (no AI)
+  - Run with --no-ai to skip API calls
+  - Output saved to AUTO_GENERATED_README.md
+""")
+        return
+    
+    # Validate path argument
+    if len(sys.argv) > 1:
+        repo_path = sys.argv[1]
+        if not os.path.exists(repo_path):
+            print(f"❌ Error: Path does not exist: {repo_path}")
+            print("   Use '.' for current directory or provide a valid path")
+            sys.exit(1)
+    else:
+        repo_path = "."
+    
     use_ai = '--no-ai' not in sys.argv
+    
+    # Check API key warning
+    if use_ai and (OPENROUTER_API_KEY == "API_KEY" or not OPENROUTER_API_KEY):
+        print("⚠️  No OPENROUTER_API_KEY found. Using fallback mode (--no-ai).")
+        print("   Set OPENROUTER_API_KEY env var for AI features, or use --no-ai")
+        use_ai = False
     
     generator = AutoDocGenerator(repo_path)
     result = generator.run(use_ai=use_ai)
